@@ -1,0 +1,287 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>IPL Match Predictor</title>
+    <style>
+        * { box-sizing: border-box; }
+
+        body {
+            margin: 0;
+            padding: 32px 16px;
+            font-family: Arial, sans-serif;
+            background: #0b1120;
+            color: #f8fafc;
+        }
+
+        .container { max-width: 850px; margin: auto; }
+
+        header { text-align: center; margin-bottom: 28px; }
+        header h1 { color: #38bdf8; font-size: 34px; margin-bottom: 10px; }
+        header p { color: #aab8cc; line-height: 1.6; }
+
+        .card {
+            background: #182338;
+            padding: 26px;
+            border: 1px solid #2c3a52;
+            border-radius: 18px;
+            margin-bottom: 22px;
+        }
+
+        h2 { margin-top: 0; }
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 18px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 8px;
+            color: #dbeafe;
+            font-size: 14px;
+        }
+
+        input, select {
+            width: 100%;
+            padding: 13px;
+            border-radius: 9px;
+            border: 1px solid #41516b;
+            background: #0d1729;
+            color: white;
+            font-size: 15px;
+        }
+
+        input:focus, select:focus {
+            outline: 2px solid #38bdf8;
+            border-color: transparent;
+        }
+
+        .hint { font-size: 12px; color: #9aabc2; margin-top: 6px; }
+
+        button {
+            width: 100%;
+            margin-top: 24px;
+            padding: 15px;
+            border: 0;
+            border-radius: 10px;
+            background: #0284c7;
+            color: white;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        button:hover { background: #0369a1; }
+
+        .error {
+            background: #451a25;
+            color: #fecaca;
+            border: 1px solid #9f3548;
+            padding: 14px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+        }
+
+        .result { text-align: center; }
+        .teams { color: #aab8cc; line-height: 1.8; }
+
+        .probability {
+            font-size: clamp(38px, 8vw, 58px);
+            font-weight: bold;
+            color: #38bdf8;
+            margin: 16px 0;
+        }
+
+        .bar {
+            display: flex;
+            height: 18px;
+            border-radius: 999px;
+            overflow: hidden;
+            background: #334155;
+            margin: 20px 0 12px;
+        }
+
+        .batting-bar { background: #22c55e; }
+        .bowling-bar { background: #f59e0b; }
+
+        .legend {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            font-size: 13px;
+            flex-wrap: wrap;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 12px;
+            margin-top: 24px;
+        }
+
+        .stat {
+            background: #0d1729;
+            padding: 15px 8px;
+            border-radius: 10px;
+        }
+
+        .stat small { display: block; color: #9aabc2; margin-bottom: 8px; }
+        .stat strong { font-size: 20px; }
+
+        .note {
+            color: #9aabc2;
+            font-size: 12px;
+            line-height: 1.6;
+            margin-top: 20px;
+        }
+
+        @media (max-width: 600px) {
+            .grid, .stats { grid-template-columns: 1fr; }
+            .card { padding: 19px; }
+            header h1 { font-size: 28px; }
+        }
+    </style>
+</head>
+<body>
+<div class="container">
+    <header>
+        <h1>🏏 IPL Match Predictor</h1>
+        <p>Estimate the chasing team's winning probability from the current match situation.</p>
+    </header>
+
+    {% if error %}
+    <div class="error" role="alert">
+        <strong>Check your input:</strong> {{ error }}
+    </div>
+    {% endif %}
+
+    <section class="card">
+        <h2>Match Situation</h2>
+
+        <form action="/predict" method="POST">
+            <div class="grid">
+                <div>
+                    <label for="batting_team">Chasing Team</label>
+                    <select id="batting_team" name="batting_team" required>
+                        <option value="">Select batting team</option>
+                        {% for team in teams %}
+                        <option value="{{ team }}"
+                        {% if prediction and prediction.batting_team == team %}selected{% endif %}>
+                            {{ team }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="bowling_team">Bowling Team</label>
+                    <select id="bowling_team" name="bowling_team" required>
+                        <option value="">Select bowling team</option>
+                        {% for team in teams %}
+                        <option value="{{ team }}"
+                        {% if prediction and prediction.bowling_team == team %}selected{% endif %}>
+                            {{ team }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="venue">Venue</label>
+                    <select id="venue" name="venue" required>
+                        <option value="">Select venue</option>
+                        {% for venue in venues %}
+                        <option value="{{ venue }}"
+                        {% if prediction and prediction.venue == venue %}selected{% endif %}>
+                            {{ venue }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div>
+                    <label for="target_runs">Target Runs</label>
+                    <input id="target_runs" name="target_runs" type="number"
+                           min="1" max="1000" value="{{ prediction.target if prediction else 180 }}"
+                           required>
+                </div>
+
+                <div>
+                    <label for="current_score">Current Score</label>
+                    <input id="current_score" name="current_score" type="number"
+                           min="0" max="999" value="{{ prediction.score if prediction else 100 }}"
+                           required>
+                </div>
+
+                <div>
+                    <label for="wickets_lost">Wickets Lost</label>
+                    <input id="wickets_lost" name="wickets_lost" type="number"
+                           min="0" max="9" value="{{ prediction.wickets if prediction else 3 }}"
+                           required>
+                </div>
+
+                <div>
+                    <label for="overs_completed">Overs Completed</label>
+                    <input id="overs_completed" name="overs_completed" type="text"
+                           inputmode="decimal" pattern="[0-9]{1,2}(\.[0-5])?"
+                           value="{{ prediction.overs if prediction else '12.0' }}"
+                           placeholder="e.g. 12.3" required>
+                    <p class="hint">Cricket notation: 12.3 = 12 overs and 3 balls.</p>
+                </div>
+            </div>
+
+            <button type="submit">Calculate Win Probability</button>
+        </form>
+    </section>
+
+    {% if prediction %}
+    <section class="card result" aria-live="polite">
+        <h2>Prediction Result</h2>
+        <p class="teams">
+            {{ prediction.batting_team }} vs {{ prediction.bowling_team }}
+        </p>
+
+        <div class="probability">{{ prediction.win_probability }}%</div>
+        <p>Estimated win probability for <strong>{{ prediction.batting_team }}</strong></p>
+
+        <div class="bar" aria-label="Estimated probability comparison">
+            <div class="batting-bar"
+                 style="width: {{ prediction.win_probability }}%"></div>
+            <div class="bowling-bar"
+                 style="width: {{ 100 - prediction.win_probability }}%"></div>
+        </div>
+
+        <div class="legend">
+            <span>🟢 {{ prediction.batting_team }}: {{ prediction.win_probability }}%</span>
+            <span>🟠 {{ prediction.bowling_team }}: {{ prediction.opponent_probability }}%</span>
+        </div>
+
+        <div class="stats">
+            <div class="stat">
+                <small>Runs required</small>
+                <strong>{{ prediction.runs_required }}</strong>
+            </div>
+            <div class="stat">
+                <small>Balls remaining</small>
+                <strong>{{ prediction.balls_remaining }}</strong>
+            </div>
+            <div class="stat">
+                <small>Current score</small>
+                <strong>{{ prediction.score }}/{{ prediction.wickets }}</strong>
+            </div>
+        </div>
+
+        <p class="note">
+            This is a machine-learning estimate, not a guaranteed result.
+            The opponent's percentage is the complement of the model's estimate,
+            not a separately validated probability. The current model assumes a
+            standard 20-over chase.
+        </p>
+    </section>
+    {% endif %}
+</div>
+</body>
+</html>
